@@ -1,0 +1,21 @@
+[tool.poetry]
+name = "doctr-api"
+version = "0.1.0"
+description = ""
+authors = ["Kristian Mischke <kristianmischke@gmail.com>"]
+
+[tool.poetry.dependencies]
+python = ">=3.10,<3.12"
+fastapi = "^0.85.0"
+uvicorn = {extras = ["standard"], version = "^0.18.3"}
+numpy = "^1.23.3"
+python-doctr = {extras = ["torch"], version = "^0.6.0"}
+weasyprint = "^56.1"
+requests = "^2.28.1"
+
+[tool.poetry.dev-dependencies]
+scikit-build = "^0.15.0"
+
+[build-system]
+requires = ["poetry-core>=1.0.0"]
+build-backend = "poetry.core.masonry.api"
