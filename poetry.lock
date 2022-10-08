@@ -264,6 +264,14 @@ optional = false
 python-versions = ">=3.6"
 
 [[package]]
+name = "editdistpy"
+version = "0.1.3"
+description = "Fast Levenshtein and Damerau optimal string alignment algorithms."
+category = "main"
+optional = false
+python-versions = ">=3.6"
+
+[[package]]
 name = "entrypoints"
 version = "0.4"
 description = "Discover and load entry points from installed packages."
@@ -887,6 +895,22 @@ python-versions = ">=3.6"
 pyparsing = ">=2.0.2,<3.0.5 || >3.0.5"
 
 [[package]]
+name = "pandas"
+version = "1.5.0"
+description = "Powerful data structures for data analysis, time series, and statistics"
+category = "main"
+optional = false
+python-versions = ">=3.8"
+
+[package.dependencies]
+numpy = {version = ">=1.21.0", markers = "python_version >= \"3.10\""}
+python-dateutil = ">=2.8.1"
+pytz = ">=2020.1"
+
+[package.extras]
+test = ["pytest-xdist (>=1.31)", "pytest (>=6.0)", "hypothesis (>=5.5.3)"]
+
+[[package]]
 name = "pandocfilters"
 version = "1.5.0"
 description = "Utilities for writing pandoc filters in python"
@@ -1159,6 +1183,14 @@ python-versions = ">=3.7"
 cli = ["click (>=5.0)"]
 
 [[package]]
+name = "pytz"
+version = "2022.4"
+description = "World timezone definitions, modern and historical"
+category = "main"
+optional = false
+python-versions = "*"
+
+[[package]]
 name = "pywin32"
 version = "304"
 description = "Python for Window Extensions"
@@ -1382,6 +1414,17 @@ anyio = ">=3.4.0,<5"
 
 [package.extras]
 full = ["itsdangerous", "jinja2", "python-multipart", "pyyaml", "requests"]
+
+[[package]]
+name = "symspellpy"
+version = "6.7.6"
+description = "Python SymSpell"
+category = "main"
+optional = false
+python-versions = ">=3.6"
+
+[package.dependencies]
+editdistpy = ">=0.1.3"
 
 [[package]]
 name = "terminado"
@@ -1642,7 +1685,7 @@ test = ["pytest"]
 [metadata]
 lock-version = "1.1"
 python-versions = ">=3.10,<3.12"
-content-hash = "62969fe5a58f9846fa81a518e613071a2b482cda732c99e6f6e9f12cfcc921c0"
+content-hash = "afe5edeaddeba52cf987fc6bfe030cf5ead43e0ef2449f6e4e74392d7edbcef1"
 
 [metadata.files]
 anyio = []
@@ -1683,6 +1726,7 @@ decorator = [
 ]
 defusedxml = []
 distro = []
+editdistpy = []
 entrypoints = []
 executing = []
 fastapi = []
@@ -1774,6 +1818,7 @@ packaging = [
     {file = "packaging-21.3-py3-none-any.whl", hash = "sha256:ef103e05f519cdc783ae24ea4e2e0f508a9c99b2d4969652eed6a2e1ea5bd522"},
     {file = "packaging-21.3.tar.gz", hash = "sha256:dd47c42927d89ab911e606518907cc2d3a1f38bbd026385970643f9c5b8ecfeb"},
 ]
+pandas = []
 pandocfilters = []
 parso = [
     {file = "parso-0.8.3-py2.py3-none-any.whl", hash = "sha256:c001d4636cd3aecdaf33cbb40aebb59b094be2a74c556778ef5576c175e19e75"},
@@ -1821,6 +1866,7 @@ python-dateutil = [
 ]
 python-doctr = []
 python-dotenv = []
+pytz = []
 pywin32 = []
 pywinpty = []
 pyyaml = [
@@ -1879,6 +1925,7 @@ sniffio = []
 soupsieve = []
 stack-data = []
 starlette = []
+symspellpy = []
 terminado = []
 tinycss2 = []
 tomli = []
