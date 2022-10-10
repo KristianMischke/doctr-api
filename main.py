@@ -39,7 +39,8 @@ def do_ocr(path: str):
          response_class=PlainTextResponse
          )
 def receipt_to_text(path: str):
-    response = requests.get(path)
+    response = requests.get(path, headers={"User-Agent": "XY"})
+    print(path, response)
     return convert_receipt_image_to_text(response.content, model, True)
 
 
@@ -47,7 +48,8 @@ def receipt_to_text(path: str):
          response_class=DFResponse
          )
 def receipt_to_items(path: str):
-    response = requests.get(path)
+    response = requests.get(path, headers={"User-Agent": "XY"})
+    print(path, response)
     df = convert_receipt_image_to_df(response.content, model, True)
     return df.to_json()
 

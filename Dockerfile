@@ -21,5 +21,5 @@ RUN poetry config virtualenvs.create false && poetry install --no-dev --no-inter
 
 COPY . /code
 
-EXPOSE 8888
-CMD ["uvicorn", "main:app", "--reload", "--workers", "1", "--host", "0.0.0.0", "--port", "8888"]
+EXPOSE 8088
+CMD ["uvicorn", "main:app", "--reload", "--workers", "1", "--host", "0.0.0.0", "--port", "8088"]
