@@ -8,6 +8,9 @@ ENV PYTHONFAULTHANDLER=1 \
   PIP_DEFAULT_TIMEOUT=100 \
   POETRY_VERSION=1.1.13
 
+RUN apt-get update
+RUN apt-get install ffmpeg libsm6 libxext6  -y  # dep for cv2
+
 RUN pip install "poetry==$POETRY_VERSION"
 
 WORKDIR /code
