@@ -1,24 +1,18 @@
 from typing import Union
 
-import fastapi
+import pandas as pd
 from fastapi import FastAPI
 import requests
 
 from doctr.io import DocumentFile
 from doctr.models import ocr_predictor
-from starlette.responses import PlainTextResponse, Response
+from starlette.responses import PlainTextResponse
 
-from receipt_processing import convert_receipt_image_to_df, convert_receipt_image_to_text
+from models import Page, DFResponse
+from receipt_processing import convert_doc_page_to_text_grid, extract_receipt_items
 
 model = ocr_predictor(pretrained=True)
 app = FastAPI()
-
-
-class DFResponse(Response):
-    media_type = "application/json"
-
-    def render(self, content: any) -> bytes:
-        return content.encode("utf-8")
 
 
 @app.get("/")
@@ -35,23 +29,59 @@ def do_ocr(path: str):
     return result
 
 
-@app.get("/receipt_to_text",
+@app.get("/receipt_image_to_text",
          response_class=PlainTextResponse
          )
-def receipt_to_text(path: str):
+def receipt_image_to_text(path: str):
     response = requests.get(path, headers={"User-Agent": "XY"})
     print(path, response)
-    return convert_receipt_image_to_text(response.content, model, True)
+    doc = DocumentFile.from_images(response.content)
+    result = model(doc)
+
+    text_rows = convert_doc_page_to_text_grid(result.pages[0], True)
+    return "\n".join(text_rows)
 
 
-@app.get("/receipt_to_items",
+@app.get("/receipt_page_to_text",
+         response_class=PlainTextResponse
+         )
+def receipt_page_to_text(page: Page):
+    text_rows = convert_doc_page_to_text_grid(page, True)
+    return "\n".join(text_rows)
+
+
+@app.get("/receipt_image_to_items",
          response_class=DFResponse
          )
-def receipt_to_items(path: str):
+def receipt_image_to_items(path: str):
     response = requests.get(path, headers={"User-Agent": "XY"})
     print(path, response)
-    df = convert_receipt_image_to_df(response.content, model, True)
+    doc = DocumentFile.from_images(response.content)
+    result = model(doc)
+
+    text_rows = convert_doc_page_to_text_grid(result.pages[0], True)
+    items = extract_receipt_items(text_rows)
+    df = pd.DataFrame(items)
     return df.to_json()
+
+
+@app.get("/receipt_page_to_items",
+         response_class=DFResponse
+         )
+def receipt_page_to_items(page: Page):
+    text_rows = convert_doc_page_to_text_grid(page, True)
+    items = extract_receipt_items(text_rows)
+    df = pd.DataFrame(items)
+    return df.to_json()
+
+
+@app.get("/ocr_geometry")
+def ocr_geometry(path: str) -> Page:
+    response = requests.get(path, headers={"User-Agent": "XY"})
+    print(path, response)
+    doc = DocumentFile.from_images(response.content)
+    result = model(doc)
+    return Page.get_from_doctr_page(result.pages[0])
 
 
 @app.get("/items/{item_id}")

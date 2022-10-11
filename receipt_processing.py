@@ -130,21 +130,3 @@ def extract_receipt_items(text_rows: list[str]) -> list[dict]:
             })
 
     return items
-
-
-def convert_receipt_image_to_text(img_bytes: bytes, model: OCRPredictor, debug: bool) -> str:
-    doc = DocumentFile.from_images(img_bytes)
-    result = model(doc)
-
-    text_rows = convert_doc_page_to_text_grid(result.pages[0], debug)
-    return "\n".join(text_rows)
-
-
-def convert_receipt_image_to_df(img_bytes: bytes, model: OCRPredictor, debug: bool) -> pd.DataFrame:
-    doc = DocumentFile.from_images(img_bytes)
-    result = model(doc)
-
-    text_rows = convert_doc_page_to_text_grid(result.pages[0], debug)
-    items = extract_receipt_items(text_rows)
-    df = pd.DataFrame(items)
-    return df
