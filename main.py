@@ -42,10 +42,10 @@ def receipt_image_to_text(path: str):
     return "\n".join(text_rows)
 
 
-@app.get("/receipt_page_to_text",
-         response_class=PlainTextResponse
-         )
-def receipt_page_to_text(page: Page):
+@app.post("/receipt_page_to_text",
+          response_class=PlainTextResponse
+          )
+async def receipt_page_to_text(page: Page):
     text_rows = convert_doc_page_to_text_grid(page, True)
     return "\n".join(text_rows)
 
@@ -53,7 +53,7 @@ def receipt_page_to_text(page: Page):
 @app.get("/receipt_image_to_items",
          response_class=DFResponse
          )
-def receipt_image_to_items(path: str):
+async def receipt_image_to_items(path: str):
     response = requests.get(path, headers={"User-Agent": "XY"})
     print(path, response)
     doc = DocumentFile.from_images(response.content)
@@ -65,10 +65,10 @@ def receipt_image_to_items(path: str):
     return df.to_json()
 
 
-@app.get("/receipt_page_to_items",
-         response_class=DFResponse
-         )
-def receipt_page_to_items(page: Page):
+@app.post("/receipt_page_to_items",
+          response_class=DFResponse
+          )
+async def receipt_page_to_items(page: Page):
     text_rows = convert_doc_page_to_text_grid(page, True)
     items = extract_receipt_items(text_rows)
     df = pd.DataFrame(items)
@@ -76,7 +76,7 @@ def receipt_page_to_items(page: Page):
 
 
 @app.get("/ocr_geometry")
-def ocr_geometry(path: str) -> Page:
+async def ocr_geometry(path: str) -> Page:
     response = requests.get(path, headers={"User-Agent": "XY"})
     print(path, response)
     doc = DocumentFile.from_images(response.content)
