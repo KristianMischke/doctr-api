@@ -1,34 +1,25 @@
 import math
 import re
 
-import pandas as pd
-
-from doctr.io import DocumentFile, Page
-from doctr.models.predictor import OCRPredictor
+from models import Page, Geometry
 
 
-def get_points(geometry):
-    return geometry[0][0],\
-           geometry[0][1],\
-           geometry[1][0],\
-           geometry[1][1]
+def get_points(geometry: Geometry):
+    return geometry.x,\
+           geometry.y,\
+           geometry.x2,\
+           geometry.y2
 
 
 def convert_doc_page_to_text_grid(page: Page, debug: bool) -> list[str]:
 
     # get page geometry as bounding box of all blocks in page
-    page_geometry = ((math.inf, math.inf), (-math.inf, -math.inf))
+    page_geometry = Geometry.convert(((math.inf, math.inf), (-math.inf, -math.inf)))
     for block in page.blocks:
-        page_geometry = (
-            (
-                min(page_geometry[0][0], block.geometry[0][0]),
-                min(page_geometry[0][1], block.geometry[0][1]),
-            ),
-            (
-                max(page_geometry[1][0], block.geometry[1][0]),
-                max(page_geometry[1][1], block.geometry[1][1]),
-            )
-        )
+        page_geometry.x = min(page_geometry.x, block.geometry.x)
+        page_geometry.y = min(page_geometry.y, block.geometry.y)
+        page_geometry.x2 = max(page_geometry.x2, block.geometry.x2)
+        page_geometry.y2 = max(page_geometry.y2, block.geometry.y2)
     if debug:
         print(page_geometry)
     pg_x, pg_y, pg_x2, pg_y2 = get_points(page_geometry)
@@ -52,8 +43,8 @@ def convert_doc_page_to_text_grid(page: Page, debug: bool) -> list[str]:
     cols = math.ceil((pg_x2 - pg_x) / char_width)
 
     # sort by x then by y
-    sorted_words = sorted(all_words, key=lambda word: word.geometry[0][0])
-    sorted_words = sorted(sorted_words, key=lambda word: word.geometry[0][1])
+    sorted_words = sorted(all_words, key=lambda word: word.geometry.x)
+    sorted_words = sorted(sorted_words, key=lambda word: word.geometry.y)
 
     text = []
     ln_start_y = pg_y

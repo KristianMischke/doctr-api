@@ -38,7 +38,8 @@ def receipt_image_to_text(path: str):
     doc = DocumentFile.from_images(response.content)
     result = model(doc)
 
-    text_rows = convert_doc_page_to_text_grid(result.pages[0], True)
+    page = Page.get_from_doctr_page(result.pages[0])
+    text_rows = convert_doc_page_to_text_grid(page, True)
     return "\n".join(text_rows)
 
 
@@ -59,7 +60,8 @@ async def receipt_image_to_items(path: str):
     doc = DocumentFile.from_images(response.content)
     result = model(doc)
 
-    text_rows = convert_doc_page_to_text_grid(result.pages[0], True)
+    page = Page.get_from_doctr_page(result.pages[0])
+    text_rows = convert_doc_page_to_text_grid(page, True)
     items = extract_receipt_items(text_rows)
     df = pd.DataFrame(items)
     return df.to_json()
