@@ -1,4 +1,4 @@
-FROM python:3.10
+FROM nvidia/cuda:11.7.0-base-ubuntu22.04
 
 ENV PYTHONFAULTHANDLER=1 \
   PYTHONUNBUFFERED=1 \
