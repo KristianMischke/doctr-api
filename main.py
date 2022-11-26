@@ -11,7 +11,7 @@ from starlette.responses import PlainTextResponse
 from models import Page, DFResponse
 from receipt_processing import convert_doc_page_to_text_grid, extract_receipt_items
 
-model = ocr_predictor(pretrained=True)
+model = ocr_predictor(pretrained=True).cuda()
 app = FastAPI()
 
 

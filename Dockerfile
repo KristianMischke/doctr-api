@@ -8,7 +8,11 @@ ENV PYTHONFAULTHANDLER=1 \
   PIP_DEFAULT_TIMEOUT=100 \
   POETRY_VERSION=1.1.13
 
+ENV NVIDIA_VISIBLE_DEVICES all
+ENV NVIDIA_DRIVER_CAPABILITIES compute,utility
+
 RUN apt-get update
+RUN apt-get install python3-pip -y
 RUN apt-get install ffmpeg libsm6 libxext6  -y  # dep for cv2
 
 RUN pip install "poetry==$POETRY_VERSION"
@@ -18,6 +22,7 @@ WORKDIR /code
 COPY ./poetry.lock /code
 COPY ./pyproject.toml /code
 RUN poetry config virtualenvs.create false && poetry install --no-dev --no-interaction --no-ansi
+RUN pip3 install torch torchvision torchaudio --extra-index-url https://download.pytorch.org/whl/cu117
 
 COPY . /code
 
