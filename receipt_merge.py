@@ -241,18 +241,21 @@ def get_merge_parameters(page_1: Page, page_2: Page) -> MergeParameters:
 
     pg1_all_words, pg1_char_width = get_all_words_and_min_char_width(page_1, False)
     pg2_all_words, pg2_char_width = get_all_words_and_min_char_width(page_2, False)
-    print(pg1_char_width / pg2_char_width)
+    avg_char_width_ratio = pg1_char_width / pg2_char_width
+    print(f"{pg1_char_width} / {pg2_char_width} = {avg_char_width_ratio}")
 
     pg1_line_widths = get_doc_page_line_widths(page_1)
     pg2_line_widths = get_doc_page_line_widths(page_2)
 
     pg1_avg_line_width = sum(pg1_line_widths) / len(pg1_line_widths)
     pg2_avg_line_width = sum(pg2_line_widths) / len(pg2_line_widths)
-    print(f"{pg1_avg_line_width} / {pg2_avg_line_width} = {pg1_avg_line_width / pg2_avg_line_width}")
+    avg_line_width_ratio = pg1_avg_line_width / pg2_avg_line_width
+    print(f"{pg1_avg_line_width} / {pg2_avg_line_width} = {avg_line_width_ratio}")
 
     pg1_median_line_width = sorted(pg1_line_widths)[len(pg1_line_widths) // 2]
     pg2_median_line_width = sorted(pg2_line_widths)[len(pg2_line_widths) // 2]
-    print(f"{pg1_median_line_width} / {pg2_median_line_width} = {pg1_median_line_width / pg2_median_line_width}")
+    median_line_width_ratio = pg1_median_line_width / pg2_median_line_width
+    print(f"{pg1_median_line_width} / {pg2_median_line_width} = {median_line_width_ratio}")
 
     # compile candidate matches
     candidates = get_merge_candidates(pg1_all_words, pg2_all_words)
@@ -285,16 +288,14 @@ def get_merge_parameters(page_1: Page, page_2: Page) -> MergeParameters:
                 overlap_margin=0.01,  # TODO
             )
 
-            char_width_ratio = pg1_avg_line_width / pg2_avg_line_width  # ratio based on overall pages
-            if char_width_ratio == 1:  # reassign to word-ratio
-                match_char_width = (match_word.geometry.x2 - match_word.geometry.x) / len(match_word.value)
-                char_width_ratio = match_char_width / word_char_width
+            match_char_width = (match_word.geometry.x2 - match_word.geometry.x) / len(match_word.value)
+            char_width_ratio = match_char_width / word_char_width
             print()
             print(f"{word.value} -> {match_word.value} ... {char_width_ratio}")
 
-            # attempt with a range of scales
-            min_scale = 0.85 if char_width_ratio < 1 else 1
-            max_scale = 1 if char_width_ratio < 1 else 1.15
+            # attempt with a range of scales based on different ratio calculations
+            min_scale = min(char_width_ratio, avg_char_width_ratio, median_line_width_ratio, avg_line_width_ratio) - 0.1
+            max_scale = max(char_width_ratio, avg_char_width_ratio, median_line_width_ratio, avg_line_width_ratio) + 0.1
             num_steps = 4
             for j in range(num_steps+1):
                 merge_params.scale = (max_scale - min_scale) * (j / num_steps) + min_scale
@@ -306,9 +307,10 @@ def get_merge_parameters(page_1: Page, page_2: Page) -> MergeParameters:
                 merge_params.fuzz_ratio = fuzz_ratio
                 print(merge_params)
 
-                if merge_params.overlap_ratio > best_merge_params.overlap_ratio\
-                        or (merge_params.overlap_ratio == best_merge_params.overlap_ratio
-                            and merge_params.fuzz_ratio > best_merge_params.fuzz_ratio):
+                # if merge_params.overlap_ratio > best_merge_params.overlap_ratio\
+                #         or (merge_params.overlap_ratio == best_merge_params.overlap_ratio
+                #             and merge_params.fuzz_ratio > best_merge_params.fuzz_ratio):
+                if merge_params.fuzz_ratio > best_merge_params.fuzz_ratio:
                     # found new best!
                     best_merge_params = merge_params.copy()
 
