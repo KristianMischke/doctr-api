@@ -310,11 +310,11 @@ def get_merge_parameters(page_1: Page, page_2: Page) -> MergeParameters:
                 # if merge_params.overlap_ratio > best_merge_params.overlap_ratio\
                 #         or (merge_params.overlap_ratio == best_merge_params.overlap_ratio
                 #             and merge_params.fuzz_ratio > best_merge_params.fuzz_ratio):
-                if merge_params.fuzz_ratio > best_merge_params.fuzz_ratio:
+                if merge_params.overlap_ratio + merge_params.fuzz_ratio > best_merge_params.overlap_ratio + best_merge_params.fuzz_ratio:
                     # found new best!
                     best_merge_params = merge_params.copy()
 
-    #TODO: more minor adjustments? or averaging of candidates... or use more candidates?
+    # TODO: more minor adjustments? or averaging of candidates... or use more candidates?
 
     return best_merge_params
 
