@@ -1,3 +1,6 @@
+Be sure to have correct Poetry version 1.2.2
+Follow: https://python-poetry.org/blog/announcing-poetry-1.2.0/
+
 Follow steps here:
 https://doc.courtbouillon.org/weasyprint/stable/first_steps.html
 

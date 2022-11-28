@@ -1,7 +1,7 @@
 import math
 import re
 
-from models import Page, Geometry
+from models import Page, Geometry, Word
 
 
 def get_points(geometry: Geometry):
@@ -11,8 +11,7 @@ def get_points(geometry: Geometry):
            geometry.y2
 
 
-def convert_doc_page_to_text_grid(page: Page, debug: bool) -> list[str]:
-
+def get_doc_page_geometry(page: Page, debug: bool = False) -> Geometry:
     # get page geometry as bounding box of all blocks in page
     page_geometry = Geometry.convert(((math.inf, math.inf), (-math.inf, -math.inf)))
     for block in page.blocks:
@@ -22,22 +21,44 @@ def convert_doc_page_to_text_grid(page: Page, debug: bool) -> list[str]:
         page_geometry.y2 = max(page_geometry.y2, block.geometry.y2)
     if debug:
         print(page_geometry)
-    pg_x, pg_y, pg_x2, pg_y2 = get_points(page_geometry)
+    return page_geometry
 
+
+def get_doc_page_line_widths(page: Page) -> list[float]:
+    widths = []
+    for block in page.blocks:
+        for line in block.lines:
+            widths.append(line.geometry.x2 - line.geometry.x)
+    return widths
+
+
+def get_all_words_and_min_char_width(page: Page, debug: bool = False) -> (list[Word], float):
     all_words = []
     avg_character_widths = []
     for block in page.blocks:
         for line in block.lines:
             for word in line.words:
                 x, y, x2, y2 = get_points(word.geometry)
-                avg_character_widths.append((x2 - x) / len(word.value))
-                all_words.append(word)
+                if len(word.value) > 0:
+                    avg_character_widths.append((x2 - x) / len(word.value))
+                    all_words.append(word)
 
     avg_character_widths.sort()
     char_width = avg_character_widths[0]  # char width defined by minimum avg char width
     if debug:
         print(avg_character_widths)
         print(char_width)
+
+    return all_words, char_width
+
+
+def convert_doc_page_to_text_grid(page: Page, debug: bool) -> list[str]:
+
+    # get page geometry as bounding box of all blocks in page
+    page_geometry = get_doc_page_geometry(page, debug)
+    pg_x, pg_y, pg_x2, pg_y2 = get_points(page_geometry)
+
+    all_words, char_width = get_all_words_and_min_char_width(page, debug)
 
     # get number of columns
     cols = math.ceil((pg_x2 - pg_x) / char_width)
@@ -102,8 +123,9 @@ def convert_doc_page_to_text_grid(page: Page, debug: bool) -> list[str]:
 
         text[-1] = text[-1][:start_col] + word.value + text[-1][start_col+len(word.value):]
 
-    for row in text:
-        print(row)
+    if debug:
+        for row in text:
+            print(row)
     return text
 
 

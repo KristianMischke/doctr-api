@@ -24,6 +24,24 @@ class Geometry(BaseModel):
             y2=geometry[1][1],
         )
 
+    def overlaps(self, other: Geometry, overlap_margin: float = 0) -> bool:
+        """
+            determines whether other overlaps with self
+        :param other:
+        :param overlap_margin: amount of margin to ignore
+        (larger values means geometries must overlap MORE to count as overlapping)
+        :return:
+        """
+        if self.x > other.x2 - overlap_margin:
+            return False
+        if self.x2 < other.x + overlap_margin:
+            return False
+        if self.y > other.y2 - overlap_margin:
+            return False
+        if self.y2 < other.y + overlap_margin:
+            return False
+        return True
+
 
 class Word(BaseModel):
     value: str
