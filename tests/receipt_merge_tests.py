@@ -13,9 +13,10 @@ class ReceiptMergeTests(unittest.TestCase):
     model: OCRPredictor
     img_tests: dict[str, dict]
 
-    def get_test_images(self):
+    @classmethod
+    def get_test_images(cls):
         # collect images in data dir by index and store parts in array
-        self.img_tests = {}
+        cls.img_tests: dict[str, dict] = {}
         img_filenames = sorted(list(os.listdir("data")))
         for img_filename in img_filenames:
             name_parts = img_filename.split("_")
@@ -23,34 +24,35 @@ class ReceiptMergeTests(unittest.TestCase):
             label = name_parts[2]
 
             fullpath = os.path.join("data", img_filename)
-            if idx in self.img_tests:
-                self.img_tests[idx]["file_parts"].append(fullpath)
+            if idx in cls.img_tests:
+                cls.img_tests[idx]["file_parts"].append(fullpath)
             else:
-                self.img_tests[idx] = {
+                cls.img_tests[idx] = {
                     "label": label,
                     "file_parts": [fullpath]
                 }
-        print(self.img_tests)
+        print(cls.img_tests)
 
         # loop over each index to test
-        for idx in self.img_tests:
-            img_test = self.img_tests[idx]
+        for idx in cls.img_tests:
+            img_test = cls.img_tests[idx]
 
             # get doc pages as list
             page_parts = []
             for part_filepath in img_test["file_parts"]:
                 doc = DocumentFile.from_images(part_filepath)
-                result = self.model(doc)
+                result = cls.model(doc)
                 page_parts.append(Page.get_from_doctr_page(result.pages[0]))
             img_test["page_parts"] = page_parts
 
-    def setUp(self):
-        self.model = ocr_predictor(pretrained=True).cuda()
-        self.get_test_images()
+    @classmethod
+    def setUpClass(cls):
+        cls.model: OCRPredictor = ocr_predictor(pretrained=True).cuda()
+        cls.get_test_images()
 
     def test_calculate_overlap_self(self):
-        for idx in self.img_tests:
-            img_test = self.img_tests[idx]
+        for idx in ReceiptMergeTests.img_tests:
+            img_test = ReceiptMergeTests.img_tests[idx]
 
             page_i = 0
             for page in img_test["page_parts"]:
@@ -79,8 +81,10 @@ class ReceiptMergeTests(unittest.TestCase):
 
     def test_receipt_merge(self):
         # loop over each index to test
-        for idx in self.img_tests:
-            img_test = self.img_tests[idx]
+        for idx in ReceiptMergeTests.img_tests:
+            # if idx != '007':
+            #     continue
+            img_test = ReceiptMergeTests.img_tests[idx]
             label = img_test["label"]
             page_parts = img_test["page_parts"]
             file_parts = img_test["file_parts"]

@@ -42,6 +42,14 @@ class Geometry(BaseModel):
             return False
         return True
 
+    def copy_scaled(self, scale_x, scale_y):
+        return Geometry(
+            x=self.x*scale_x,
+            y=self.y*scale_y,
+            x2=self.x2*scale_x,
+            y2=self.y2*scale_y,
+        )
+
 
 class Word(BaseModel):
     value: str
@@ -53,6 +61,12 @@ class Word(BaseModel):
         return Word(**{
             **word.__dict__,
             'geometry': Geometry.convert(word.geometry)
+        })
+
+    def copy_scaled(self, scale_x, scale_y):
+        return Word(**{
+            **self.__dict__,
+            'geometry': self.geometry.copy_scaled(scale_x, scale_y)
         })
 
 
@@ -68,6 +82,13 @@ class Line(BaseModel):
             'geometry': Geometry.convert(line.geometry)
         })
 
+    def copy_scaled(self, scale_x, scale_y):
+        return Line(**{
+            **self.__dict__,
+            'words': [word.copy_scaled(scale_x, scale_y) for word in self.words],
+            'geometry': self.geometry.copy_scaled(scale_x, scale_y)
+        })
+
 
 class Artefact(BaseModel):
     type: str
@@ -79,6 +100,12 @@ class Artefact(BaseModel):
         return Artefact(**{
             **artefact.__dict__,
             'geometry': Geometry.convert(artefact.geometry)
+        })
+
+    def copy_scaled(self, scale_x, scale_y):
+        return Artefact(**{
+            **self.__dict__,
+            'geometry': self.geometry.copy_scaled(scale_x, scale_y)
         })
 
 
@@ -96,6 +123,14 @@ class Block(BaseModel):
             'geometry': Geometry.convert(block.geometry)
         })
 
+    def copy_scaled(self, scale_x, scale_y):
+        return Block(**{
+            **self.__dict__,
+            'lines': [line.copy_scaled(scale_x, scale_y) for line in self.lines],
+            'artefacts': [artefact.copy_scaled(scale_x, scale_y) for artefact in self.artefacts],
+            'geometry': self.geometry.copy_scaled(scale_x, scale_y)
+        })
+
 
 class Page(BaseModel):
     blocks: List[Block]
@@ -109,6 +144,12 @@ class Page(BaseModel):
         return Page(**{
             **page.__dict__,
             'blocks': [Block.get_from_doctr_block(block) for block in page.blocks]
+        })
+
+    def copy_scaled(self, scale_x, scale_y):
+        return Page(**{
+            **self.__dict__,
+            'blocks': [block.copy_scaled(scale_x, scale_y) for block in self.blocks]
         })
 
 

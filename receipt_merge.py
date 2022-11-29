@@ -70,6 +70,7 @@ def calculate_overlap_geometry_fuzzy_match(
         page_1_words: list[Word],
         page_2_words: list[Word],
         merge_params: MergeParameters,
+        debug_pg1_word_overlap_count: dict[int, int] = None
 ) -> (float, int):
     """
     helper function for calculating overlapping geometry in two pages of words
@@ -99,14 +100,15 @@ def calculate_overlap_geometry_fuzzy_match(
         y2=page_2_geometry.y2 * merge_params.scale + dy,
     )
 
-    for pg1_word in page_1_words:
-        # pg1_word not overlapping adjusted pg2 bounds, so space computations and skip
-        if not pg1_word.geometry.overlaps(adjusted_pg2_geometry):
+    for i in range(len(page_1_words)):
+        pg1_word = page_1_words[i]
+        if pg1_word.geometry.y2 < adjusted_pg2_geometry.y:
+            # pg1_word not vertically overlapping adjusted pg2 bounds, thus not an expected overlap (and saves cycles)
             continue
         # sum for each pg1 word that overlaps pg2 geometry
         expected_pg1_words_with_overlap += 1
 
-        was_overlap = False
+        overlap_count = 0
         for pg2_word in page_2_words:
             # scale and offset the geometry
             adjusted_geometry = Geometry(
@@ -117,11 +119,13 @@ def calculate_overlap_geometry_fuzzy_match(
             )
             if pg1_word.geometry.overlaps(adjusted_geometry, merge_params.overlap_margin):
                 # overlapping, increment pg2 overlap count
-                was_overlap = True
+                overlap_count += 1
                 pg2_overlap_count += 1
                 fuzzy_ratio_sum += fuzz.ratio(pg1_word.value, pg2_word.value)
 
-        if was_overlap:
+        if debug_pg1_word_overlap_count is not None:
+            debug_pg1_word_overlap_count[i] = overlap_count
+        if overlap_count > 0:
             pg1_overlap_count += 1
 
     if pg2_overlap_count == 0:
@@ -131,7 +135,7 @@ def calculate_overlap_geometry_fuzzy_match(
     expected_overlap_ratio = pg1_overlap_count / expected_pg1_words_with_overlap
     geometry_overlap_ratio = int((pg1_overlap_count / pg2_overlap_count) * expected_overlap_ratio * 100)
     rescaled_fuzzy = int((fuzzy_ratio_sum // pg2_overlap_count) * expected_overlap_ratio)
-    print(f"{pg1_overlap_count}/{pg2_overlap_count}*{expected_overlap_ratio} = {geometry_overlap_ratio}% | {fuzzy_ratio_sum}/{pg2_overlap_count} = {rescaled_fuzzy}%")
+    print(f"expected_overlap_ratio: {pg1_overlap_count} / {expected_pg1_words_with_overlap} = {expected_overlap_ratio} | geometry_overlap: {pg1_overlap_count}/{pg2_overlap_count}*{expected_overlap_ratio} = {geometry_overlap_ratio}% | rescaled_fuzzy: {fuzzy_ratio_sum}/{pg2_overlap_count} = {rescaled_fuzzy}%")
 
     return geometry_overlap_ratio, rescaled_fuzzy
 
@@ -146,6 +150,7 @@ def get_merge_candidates(pg1_all_words: list[Word], pg2_all_words: list[Word]) -
     # compile map of all the best matches from pg2 words to pg1 words based on fuzzy ratio
     best_matches: dict[
         int, list[tuple[Word, int]]] = {}  # index of pg2_all_words -> list of matched pg1_word & fuzzy ratio
+    match_counts = []
     for i in range(len(pg2_all_words)):
         pg2_word = pg2_all_words[i]
 
@@ -166,6 +171,13 @@ def get_merge_candidates(pg1_all_words: list[Word], pg2_all_words: list[Word]) -
 
         if len(this_best_matches) > 0:
             best_matches[i] = this_best_matches
+            match_counts.append(len(this_best_matches))
+
+    # remove items in the top 25% of matches
+    top_25_count = sorted(match_counts)[int(0.75 * len(match_counts))]
+    too_many_matches_indices = list(filter(lambda i: len(best_matches[i]) > top_25_count, list(best_matches.keys())))
+    for i in too_many_matches_indices:
+        best_matches.pop(i)
 
     # get the word that has the lowest y value
     top_word = sorted(list(best_matches.keys()), key=lambda i: pg2_all_words[i].geometry.y)[0]
@@ -199,8 +211,8 @@ def merge_page_images(
     # convert to pixels
     target_x = int(merge_params.target_x * pg1_image.shape[1])
     target_y = int(merge_params.target_y * pg1_image.shape[0])
-    source_x = int(merge_params.source_x * pg2_image.shape[1])
-    source_y = int(merge_params.source_y * pg2_image.shape[0])
+    source_x = int(merge_params.source_x * pg1_image.shape[1])  # note: because merge params assumes coords are scaled to img 1
+    source_y = int(merge_params.source_y * pg1_image.shape[0])  # ^
     dx = target_x - int(source_x * merge_params.scale)
     dy = target_y - int(source_y * merge_params.scale)
     print(dx, dy)
@@ -210,6 +222,7 @@ def merge_page_images(
     cp_pg2_img = opencv_resize(cp_pg2_img, merge_params.scale)
 
     print(pg1_image.shape)
+    print(pg2_image.shape)
     print(cp_pg2_img.shape)
     new_height = abs(dy) + cp_pg2_img.shape[0]
     new_width = max(pg1_image.shape[1], cp_pg2_img.shape[1])
@@ -234,15 +247,58 @@ def merge_page_images(
     return tmp
 
 
-def get_merge_parameters(page_1: Page, page_2: Page) -> MergeParameters:
+def draw_page_bounding_boxes(
+        page_image,
+        page: Page,
+        color: tuple[int, int, int],
+        draw_image=None,
+        debug_page_overlap_counts: dict[int, int] = None,
+):
+    # NOTE: expects normalized page
+    if draw_image is None:
+        draw_image = page_image
+    width = page_image.shape[1]
+    height = page_image.shape[0]
+
+    tmp = draw_image.copy()
+
+    word_index = 0
+    for block in page.blocks:
+        for line in block.lines:
+            for word in line.words:
+                if len(word.value) == 0:
+                    continue
+
+                px = int(word.geometry.x * width)
+                py = int(word.geometry.y * height)
+                px2 = int(word.geometry.x2 * width)
+                py2 = int(word.geometry.y2 * height)
+                tmp = cv2.rectangle(tmp, (px, py), (px2, py2), color, 1)
+
+                if debug_page_overlap_counts and word_index in debug_page_overlap_counts:
+                    tmp = cv2.putText(tmp, str(debug_page_overlap_counts[word_index]), (px, py2), cv2.FONT_HERSHEY_SIMPLEX, 0.5, color)
+                word_index += 1
+
+    return tmp
+
+
+def get_merge_parameters(page_1: Page, page_2: Page) -> (MergeParameters, dict[int, int]):
+    # NOTE: assumes pages' scales are not normalized
     # get page geometry as bounding box of all blocks in page
     pg1_geometry = get_doc_page_geometry(page_1, False)
+    pg1_x, pg1_y, pg1_x2, pg1_y2 = get_points(pg1_geometry)
     pg2_geometry = get_doc_page_geometry(page_2, False)
+    pg2_x, pg2_y, pg2_x2, pg2_y2 = get_points(pg2_geometry)
 
-    pg1_all_words, pg1_char_width = get_all_words_and_min_char_width(page_1, False)
-    pg2_all_words, pg2_char_width = get_all_words_and_min_char_width(page_2, False)
-    avg_char_width_ratio = pg1_char_width / pg2_char_width
-    print(f"{pg1_char_width} / {pg2_char_width} = {avg_char_width_ratio}")
+    pg1_width = pg1_x2 - pg1_x
+    pg2_width = pg2_x2 - pg2_x
+    page_width_ratio = pg1_width / pg2_width
+    print(f"page widths: {pg1_width} / {pg2_width} = {page_width_ratio}")
+
+    pg1_all_words, pg1_min_char_width = get_all_words_and_min_char_width(page_1, False)
+    pg2_all_words, pg2_min_char_width = get_all_words_and_min_char_width(page_2, False)
+    min_char_width_ratio = pg1_min_char_width / pg2_min_char_width
+    print(f"(min) char widths: {pg1_min_char_width} / {pg2_min_char_width} = {min_char_width_ratio}")
 
     pg1_line_widths = get_doc_page_line_widths(page_1)
     pg2_line_widths = get_doc_page_line_widths(page_2)
@@ -250,27 +306,28 @@ def get_merge_parameters(page_1: Page, page_2: Page) -> MergeParameters:
     pg1_avg_line_width = sum(pg1_line_widths) / len(pg1_line_widths)
     pg2_avg_line_width = sum(pg2_line_widths) / len(pg2_line_widths)
     avg_line_width_ratio = pg1_avg_line_width / pg2_avg_line_width
-    print(f"{pg1_avg_line_width} / {pg2_avg_line_width} = {avg_line_width_ratio}")
+    print(f"avg line widths: {pg1_avg_line_width} / {pg2_avg_line_width} = {avg_line_width_ratio}")
 
     pg1_median_line_width = sorted(pg1_line_widths)[len(pg1_line_widths) // 2]
     pg2_median_line_width = sorted(pg2_line_widths)[len(pg2_line_widths) // 2]
     median_line_width_ratio = pg1_median_line_width / pg2_median_line_width
-    print(f"{pg1_median_line_width} / {pg2_median_line_width} = {median_line_width_ratio}")
+    print(f"median line widths: {pg1_median_line_width} / {pg2_median_line_width} = {median_line_width_ratio}")
 
     # compile candidate matches
     candidates = get_merge_candidates(pg1_all_words, pg2_all_words)
 
     # loop through candidates to find the best parameters
     best_merge_params = MergeParameters(
-        scale=1,  # TODO
+        scale=1,
         target_x=-1,
         target_y=-1,
         source_x=-1,
         source_y=-1,
-        overlap_margin=0.01,  # TODO
+        overlap_margin=0.01,
         overlap_ratio=0,
         fuzz_ratio=0,
     )
+    best_debug_pg1_word_overlap = {}
     for i in candidates:
         word = pg2_all_words[i]
         word_matches = candidates[i]
@@ -280,13 +337,15 @@ def get_merge_parameters(page_1: Page, page_2: Page) -> MergeParameters:
             (match_word, match_ratio) = match
 
             merge_params = MergeParameters(
-                scale=1,  # TODO
+                scale=1,
                 target_x=match_word.geometry.x,
                 target_y=match_word.geometry.y,
                 source_x=word.geometry.x,
                 source_y=word.geometry.y,
-                overlap_margin=0.01,  # TODO
+                overlap_margin=min(pg1_min_char_width, pg2_min_char_width) * 0.1,  # 1/10th the minimum character width
             )
+            local_best_merge_params = merge_params.copy()
+            local_best_debug_pg1_word_overlap = {}
 
             match_char_width = (match_word.geometry.x2 - match_word.geometry.x) / len(match_word.value)
             char_width_ratio = match_char_width / word_char_width
@@ -294,15 +353,19 @@ def get_merge_parameters(page_1: Page, page_2: Page) -> MergeParameters:
             print(f"{word.value} -> {match_word.value} ... {char_width_ratio}")
 
             # attempt with a range of scales based on different ratio calculations
-            min_scale = min(char_width_ratio, avg_char_width_ratio, median_line_width_ratio, avg_line_width_ratio) - 0.1
-            max_scale = max(char_width_ratio, avg_char_width_ratio, median_line_width_ratio, avg_line_width_ratio) + 0.1
-            num_steps = 4
-            for j in range(num_steps+1):
-                merge_params.scale = (max_scale - min_scale) * (j / num_steps) + min_scale
+            min_scale = min(page_width_ratio, char_width_ratio, min_char_width_ratio) - 0.1
+            max_scale = max(page_width_ratio, char_width_ratio, min_char_width_ratio) + 0.1
+            j = 0
+            num_steps = 6
 
+            # init scale to min
+            scale_step = (max_scale - min_scale) / num_steps
+            merge_params.scale = min_scale
+            while j < num_steps:
                 # calculate overlap ratio
+                debug_pg1_word_overlap = {}
                 overlap_ratio, fuzz_ratio = calculate_overlap_geometry_fuzzy_match(
-                    pg1_geometry, pg2_geometry, pg1_all_words, pg2_all_words, merge_params)
+                    pg1_geometry, pg2_geometry, pg1_all_words, pg2_all_words, merge_params, debug_pg1_word_overlap)
                 merge_params.overlap_ratio = overlap_ratio
                 merge_params.fuzz_ratio = fuzz_ratio
                 print(merge_params)
@@ -310,24 +373,52 @@ def get_merge_parameters(page_1: Page, page_2: Page) -> MergeParameters:
                 # if merge_params.overlap_ratio > best_merge_params.overlap_ratio\
                 #         or (merge_params.overlap_ratio == best_merge_params.overlap_ratio
                 #             and merge_params.fuzz_ratio > best_merge_params.fuzz_ratio):
-                if merge_params.overlap_ratio + merge_params.fuzz_ratio > best_merge_params.overlap_ratio + best_merge_params.fuzz_ratio:
-                    # found new best!
-                    best_merge_params = merge_params.copy()
+                if merge_params.overlap_ratio + merge_params.fuzz_ratio >= local_best_merge_params.overlap_ratio + local_best_merge_params.fuzz_ratio:
+                    # found new local best!
+                    local_best_merge_params = merge_params.copy()
+                    local_best_debug_pg1_word_overlap = debug_pg1_word_overlap
+
+                    # merge_params.scale = (max_scale - min_scale) * (j / num_steps) + min_scale
+                    # merge_params.scale += (max_scale - min_scale) / num_steps
+                else:
+                    # merge_params.scale = abs(prev_scale - merge_params.scale) / 2
+                    scale_step = - scale_step / 2
+
+                merge_params.scale += scale_step
+                j += 1
+
+            if local_best_merge_params.overlap_ratio + local_best_merge_params.fuzz_ratio >= best_merge_params.overlap_ratio + best_merge_params.fuzz_ratio:
+                # found new gloabl best!
+                best_merge_params = local_best_merge_params.copy()
+                best_debug_pg1_word_overlap = local_best_debug_pg1_word_overlap
 
     # TODO: more minor adjustments? or averaging of candidates... or use more candidates?
 
-    return best_merge_params
+    return best_merge_params, best_debug_pg1_word_overlap
 
 
 def merge_all_pages(pages: list[Page],
                     page_paths: list[str] = None,
                     output_image_path: str = None) -> Page:
     merged_image = None
+    colors = [
+        (0, 0, 255),
+        (255, 255, 0),
+        (0, 255, 255),
+        (255, 0, 255),
+        (0, 255, 0),
+        (0, 127, 255),
+        (255, 127, 0),
+    ]
     for i in range(len(pages)-1, 0, -1):
-        after_page = pages[i]
         before_page = pages[i-1]
+        after_page = pages[i]
 
-        merge_params = get_merge_parameters(before_page, after_page)
+        scale_x = after_page.dimensions[0] / before_page.dimensions[0]
+        scale_y = after_page.dimensions[1] / before_page.dimensions[1]
+        prescaled_after_page = after_page.copy_scaled(scale_x, scale_y)
+
+        merge_params, debug_page_1_overlap = get_merge_parameters(before_page, prescaled_after_page)
         print("best merge params: ", merge_params)
 
         # TODO merge pages data
@@ -335,7 +426,12 @@ def merge_all_pages(pages: list[Page],
         if page_paths is not None and output_image_path is not None:
             after_page_img = cv2.imread(page_paths[i])
             before_page_img = cv2.imread(page_paths[i - 1])
+
+            if merged_image is None:
+                after_page_img = draw_page_bounding_boxes(after_page_img, after_page, colors[len(pages) % len(colors)])
             merged_image = merge_page_images(before_page_img, after_page_img, merge_params, merged_image)
+            merged_image = draw_page_bounding_boxes(before_page_img, before_page, colors[i % len(colors)], merged_image, debug_page_1_overlap)
+            cv2.imwrite(output_image_path + f"_step{i}.jpg", merged_image)
 
     if merged_image is not None:
         cv2.imwrite(output_image_path, merged_image)
