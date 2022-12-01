@@ -3,6 +3,7 @@ from typing import Union
 import pandas as pd
 from fastapi import FastAPI
 import requests
+import torch
 
 from doctr.io import DocumentFile
 from doctr.models import ocr_predictor
@@ -11,8 +12,11 @@ from starlette.responses import PlainTextResponse
 from models import Page, DFResponse
 from receipt_processing import convert_doc_page_to_text_grid, extract_receipt_items
 
-model = ocr_predictor(pretrained=True).cuda()
+model = ocr_predictor(pretrained=True)
 app = FastAPI()
+
+if torch.cuda.is_available():
+    model = model.cuda()
 
 
 @app.get("/")

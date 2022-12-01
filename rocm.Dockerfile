@@ -26,9 +26,8 @@ RUN pip install "poetry==$POETRY_VERSION"
 
 WORKDIR /code
 
-#COPY ./poetry.lock /code
 COPY ./pyproject.toml /code
-RUN poetry config virtualenvs.create false && poetry install --only main --no-interaction --no-ansi
+RUN poetry config virtualenvs.create false && poetry install --without dev --with rocm --no-interaction --no-ansi
 RUN pip3 install torch torchvision torchaudio --extra-index-url https://download.pytorch.org/whl/rocm5.2
 
 COPY . /code

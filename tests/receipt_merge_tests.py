@@ -1,5 +1,6 @@
 import os
 import unittest
+import torch
 
 from doctr.io import DocumentFile
 from doctr.models import ocr_predictor
@@ -47,7 +48,9 @@ class ReceiptMergeTests(unittest.TestCase):
 
     @classmethod
     def setUpClass(cls):
-        cls.model: OCRPredictor = ocr_predictor(pretrained=True).cuda()
+        cls.model: OCRPredictor = ocr_predictor(pretrained=True)
+        if torch.cuda.is_available():
+            cls.model = cls.model.cuda()
         cls.get_test_images()
 
     def test_calculate_overlap_self(self):
