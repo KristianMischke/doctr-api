@@ -50,6 +50,9 @@ class Geometry(BaseModel):
             y2=self.y2*scale_y,
         )
 
+    def center(self) -> (float, float):
+        return (self.x2 + self.x)/2, (self.y2 + self.y)/2
+
 
 class Word(BaseModel):
     value: str

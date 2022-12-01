@@ -91,6 +91,7 @@ def calculate_overlap_geometry_fuzzy_match(
     pg2_overlap_count = 0
     expected_pg1_words_with_overlap = 0
     fuzzy_ratio_sum = 0
+    center_distance_squared_sum = 0
 
     # pg1_x, pg1_y, pg1_x2, pg1_y2 = get_points(page_1_geometry)
     adjusted_pg2_geometry = Geometry(
@@ -102,6 +103,8 @@ def calculate_overlap_geometry_fuzzy_match(
 
     for i in range(len(page_1_words)):
         pg1_word = page_1_words[i]
+        pg1_word_center = pg1_word.geometry.center()
+
         if pg1_word.geometry.y2 < adjusted_pg2_geometry.y:
             # pg1_word not vertically overlapping adjusted pg2 bounds, thus not an expected overlap (and saves cycles)
             continue
@@ -123,6 +126,9 @@ def calculate_overlap_geometry_fuzzy_match(
                 pg2_overlap_count += 1
                 fuzzy_ratio_sum += fuzz.ratio(pg1_word.value, pg2_word.value)
 
+                pg2_word_center = pg2_word.geometry.center()
+                center_distance_squared_sum += (pg1_word_center[0] - pg2_word_center[0]) ** 2 + (pg1_word_center[1] - pg2_word_center[1]) ** 2
+
         if debug_pg1_word_overlap_count is not None:
             debug_pg1_word_overlap_count[i] = overlap_count
         if overlap_count > 0:
@@ -135,7 +141,7 @@ def calculate_overlap_geometry_fuzzy_match(
     expected_overlap_ratio = pg1_overlap_count / expected_pg1_words_with_overlap
     geometry_overlap_ratio = int((pg1_overlap_count / pg2_overlap_count) * expected_overlap_ratio * 100)
     rescaled_fuzzy = int((fuzzy_ratio_sum // pg2_overlap_count) * expected_overlap_ratio)
-    print(f"expected_overlap_ratio: {pg1_overlap_count} / {expected_pg1_words_with_overlap} = {expected_overlap_ratio} | geometry_overlap: {pg1_overlap_count}/{pg2_overlap_count}*{expected_overlap_ratio} = {geometry_overlap_ratio}% | rescaled_fuzzy: {fuzzy_ratio_sum}/{pg2_overlap_count} = {rescaled_fuzzy}%")
+    print(f"center_distance_squared_sum: {center_distance_squared_sum} (avg: {center_distance_squared_sum / pg2_overlap_count}) expected_overlap_ratio: {pg1_overlap_count} / {expected_pg1_words_with_overlap} = {expected_overlap_ratio} | geometry_overlap: {pg1_overlap_count}/{pg2_overlap_count}*{expected_overlap_ratio} = {geometry_overlap_ratio}% | rescaled_fuzzy: {fuzzy_ratio_sum}/{pg2_overlap_count} = {rescaled_fuzzy}%")
 
     return geometry_overlap_ratio, rescaled_fuzzy
 
