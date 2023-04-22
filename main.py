@@ -19,11 +19,6 @@ if torch.cuda.is_available():
     model = model.cuda()
 
 
-@app.get("/")
-def read_root():
-    return {"Hello": "World"}
-
-
 @app.get("/ocr")
 def do_ocr(path: str):
     response = requests.get(path)
@@ -88,8 +83,3 @@ async def ocr_geometry(path: str) -> Page:
     doc = DocumentFile.from_images(response.content)
     result = model(doc)
     return Page.get_from_doctr_page(result.pages[0])
-
-
-@app.get("/items/{item_id}")
-def read_item(item_id: int, q: Union[str, None] = None):
-    return {"item_id": item_id, "q": q}
