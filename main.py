@@ -41,7 +41,7 @@ def receipt_url_to_text(path: str):
     return await receipt_page_to_text(page)
 
 
-@app.get("/receipt_image_to_text",
+@app.post("/receipt_image_to_text",
          response_class=PlainTextResponse
          )
 async def receipt_image_to_text(upload_file: UploadFile):
@@ -73,7 +73,7 @@ async def receipt_url_to_items(path: str):
     return await receipt_page_to_items(page)
 
 
-@app.get("/receipt_image_to_items",
+@app.post("/receipt_image_to_items",
          response_class=DFResponse
          )
 async def receipt_image_to_items(upload_file: UploadFile):
@@ -103,7 +103,7 @@ async def ocr_geometry(path: str) -> Page:
     return Page.get_from_doctr_page(result.pages[0])
 
 
-@app.post("/ocr_geometry/upload")
+@app.post("/ocr_geometry/upload_image")
 async def ocr_geometry(upload_file: UploadFile) -> Page:
     doc = DocumentFile.from_images(await upload_file.read())
     result = model(doc)
